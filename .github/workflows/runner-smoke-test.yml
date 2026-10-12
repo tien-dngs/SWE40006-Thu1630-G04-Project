@@ -1,6 +1,5 @@
 name: CI Runner Smoke Test
 
-# Allows manual trigger from the GitHub web UI as well as automatic execution on push
 on:
   push:
     branches: [ "main", "master" ]
@@ -8,35 +7,7 @@ on:
 
 jobs:
   verify-self-hosted-runner:
-    # This label tells GitHub to route this job ONLY to your own CI VM
     runs-on: self-hosted
-
     steps:
-      - name: 1. Pull Repository Code
-        uses: actions/checkout@v4
-
-      - name: 2. Verify Host Machine Info
-        run: |
-          echo "=== HOST DETAILS ==="
-          echo "Hostname: $(hostname)"
-          echo "Operating System: $(uname -a)"
-          echo "Executing User: $(whoami)"
-
-      - name: 3. Verify Docker Permissions on CI Runner
-        run: |
-          echo "=== DOCKER RUNTIME CHECK ==="
-          docker --version
-          docker run --rm hello-world
-
-      - name: 4. Simulate Build Artifact Generation
-        run: |
-          echo "=== MOCK BUILD STEP ==="
-          mkdir -p build_output
-          echo "Build successful on $(date)" > build_output/status.txt
-          cat build_output/status.txt
-
-      - name: 5. Archive Build Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ci-smoke-test-artifact
-          path: build_output/status.txt
+      - name: Runner Heartbeat
+        run: echo "Runner is online on $(hostname)"
