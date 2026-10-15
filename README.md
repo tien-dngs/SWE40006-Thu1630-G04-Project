@@ -2,3 +2,4 @@
 SWE40006 Thu1630 G04 Project
 
 * 105218455 - Tien 👍
+* 104527639 - Nick 
