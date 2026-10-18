@@ -1,8 +1,15 @@
-# Backend (Express + Node.js + CORS)
+# Backend (Express + Node.js + CORS) + Playwright, Jest and Supertest
 
 Backend Configurations for the group task manager application. This folder is the Level 3 backend only.
 ## Install an Extension
 To view the SQLite database in the code editor, install the SQLite extension in Visual Studio Code
+
+## Install playwright in project root (END to END acceptance testing)
+```bash
+cd ..
+npm install
+```
+
 
 ## Run locally
 
@@ -24,7 +31,7 @@ Development sign-in:
 - `jordan@example.com` / `password` — Admin
 
 
-Initializing Database: 
+## Initializing Database: 
 
 1. Create a file under the data folder: 
 db.sqlite = Main Database file storing user and notes
@@ -37,7 +44,7 @@ Highlight all the SQL statements and select Run query
 
 Error message will display if there is an issue/conflict. 
 
-To view the database:
+## To view the database:
 
 1. Right Click Db.sqlite file > 
 2. Click Run Query and it will bring you to a SQLlite file which you will use to run any SQL queries. 
@@ -45,8 +52,35 @@ To view the database:
 4. Right click the SQL Query and SELECT Run Query. 
 
 
-Access API Endpoints:
+## Access API Endpoints:
 
 1. <backendurl>/api/health
 2. <backendurl>/api/tasks
 3. <backendurl>/api/users
+
+## Run tests (integration tests) backend locally
+
+```bash
+cd server
+npm test
+```
+
+## Run tests (end to end)
+
+```bash
+cd ..
+npx playwright test 
+```
+or for viewing it (UI version)
+
+```bash
+cd ..
+npx playwright test --ui
+```
+
+## Run tests (Unit tests)
+
+```bash
+cd frontend
+npm test
+```

@@ -30,3 +30,10 @@ dist-ssr
 # SQLite Database files
 Data/*.sqlite
 Data/*.db
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

@@ -99,12 +99,15 @@ app.delete('/api/tasks/:id', (req, res) => {
 
 
 
+if (require.main === module) {
+    app.listen(port, (error) => {
+        if(error){
+            console.log('Error occurred while starting the server:', error)
+            return
+        }
 
-app.listen(port, (error) => {
-    if(error){
-        console.log('Error occurred while starting the server:', error)
-        return
-    }
+        console.log(`The server is running on http://localhost:${port}`);
+    });
+}
 
-    console.log(`The server is running on http://localhost:${port}`);
-})
+module.exports = app;
