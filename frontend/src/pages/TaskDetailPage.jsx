@@ -47,7 +47,14 @@ function TaskDetail({ taskId }) {
   async function handleSave(values) {
     setNotice('')
     const updated = await api.updateTask(task.id, values)
-    setTask(updated)
+    setTask({
+      ...task,
+      ...values,
+      id: task.id,
+      ownerId: task.ownerId,
+      ownerName: task.ownerName,
+      updatedAt: updated.updatedAt,
+    })
     setNotice('Saved.')
     setConfirming(false)
   }

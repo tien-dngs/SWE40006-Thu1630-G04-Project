@@ -1,131 +1,141 @@
-// @ts-check
 const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
 
-test.describe('Taskboard Full Stack E2E Acceptence test', () => {
-  test('Standard User can sign in, create a task, view it, update it, and delete it', async ({page}) => {
+const shotDir = path.join(__dirname, '../evidence/level3-frontend/screenshots');
+fs.mkdirSync(shotDir, { recursive: true });
 
-    // 1. Landing On Home Page
-    await page.goto('/login');
+async function shot(page, name) {
+  await page.screenshot({ path: path.join(shotDir, name), fullPage: true });
+}
 
-    // 2. Fill account credentials for standard user
-    await page.fill('[data-testid="login-email"]', 'alex@example.com');
-    await page.fill('[data-testid="login-password"]', 'password');
+async function signIn(page, email) {
+  await page.goto('/login');
+  await page.getByTestId('login-email').fill(email);
+  await page.getByTestId('login-password').fill('password');
+  await page.getByTestId('login-submit').click();
+  await expect(page.getByRole('heading', { name: 'My tasks' })).toBeVisible();
+}
 
-    // 3. Submit sign-in form
-    await page.click('[data-testid="login-submit"]');
+async function removeTasks(request, titles) {
+  const response = await request.get('http://localhost:4004/api/tasks');
+  if (!response.ok()) return;
+  const tasks = await response.json();
+  for (const task of tasks) {
+    if (titles.includes(task.title)) {
+      await request.delete(`http://localhost:4004/api/tasks/${task.id}`);
+    }
+  }
+}
 
-    // 4. Verify redirected to main taskboard
-    await expect(page).toHaveURL('/tasks');
-    await expect(page.locator('h1')).toHaveText('My tasks');
+test.describe.serial('Taskboard workflows against the API', () => {
+  test('standard user can view, navigate, create, edit, complete, and delete a task', async ({ page, request }) => {
+    const title = `E2E note ${Date.now()}`;
+    const edited = `${title} edited`;
+    const titles = [title, edited];
 
-    // 5. Click new task button
-    await page.click('text=New task');
-    await expect(page).toHaveURL('/tasks/new');
+    try {
+      await page.goto('/login');
+      await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+      await expect(page.getByTestId('mock-banner')).toHaveCount(0);
+      await shot(page, '01-sign-in.png');
 
-    // 6. Fill out new task form
-    await page.fill('input[name="title"]', 'Playwright E2E Integration Task');
-    await page.fill('textarea[name="notes"]', 'Created automatically via browser automation test.');
+      await signIn(page, 'alex@example.com');
+      await expect(page.getByTestId('user-role')).toContainText('Standard');
+      await expect(page.getByTestId('nav-admin')).toHaveCount(0);
+      await expect(page.getByText('Draft weekly notes')).toBeVisible();
+      await expect(page.getByText('Collect tutorial notes')).toHaveCount(0);
+      await shot(page, '02-my-tasks.png');
 
-    // 7. Submit the new task form
-    await page.click('button[type="submit"]');
+      await page.getByTestId('nav-new').click();
+      await expect(page).toHaveURL('/tasks/new');
+      await expect(page.getByRole('heading', { name: 'New task' })).toBeVisible();
+      await shot(page, '03-new-task.png');
 
-    // 8. Verify we are redirected to task detail view page
-    await expect(page.locator('h1')).toHaveText('Playwright E2E Integration Task');
+      await page.getByTestId('task-title').fill(title);
+      await page.getByTestId('task-notes').fill('Created by the Playwright workflow.');
+      await page.getByTestId('task-submit').click();
+      await expect(page.getByRole('heading', { name: title })).toBeVisible();
+      await expect(page.locator('.meta-list dd').first()).toHaveText('Todo');
+      await shot(page, '04-task-detail.png');
 
-    // 9. Going back to taskboard to see if the tasks are in correct status
-    await page.click('text=Back to my tasks');
-    const todoColumn = page.locator('[data-testid="board-column-todo"]');
-    await expect(todoColumn.locator('text=Playwright E2E Integration Task')).toBeVisible();
+      await page.getByTestId('task-title').fill(edited);
+      await page.getByTestId('task-status').selectOption('done');
+      await page.getByTestId('task-submit').click();
+      await expect(page.getByText('Saved.')).toBeVisible();
+      await expect(page.getByRole('heading', { name: edited })).toBeVisible();
+      await expect(page.locator('.meta-list dd').first()).toHaveText('Done');
+      await shot(page, '05-task-completed.png');
 
-    // 10. Clicking on task to view its details
-    await page.click('text=Playwright E2E Integration Task');
+      await page.getByRole('link', { name: 'Back to my tasks' }).click();
+      await expect(page).toHaveURL('/tasks');
+      await expect(page.getByTestId('board-column-done').getByText(edited)).toBeVisible();
+      await shot(page, '06-board-after-complete.png');
 
-    // 11. Update task title and save changes and return to dashboard
-    await page.fill('input[name="title"]', 'Playwright E2E Updated Integration Task');
-    await page.click('button[type="submit"]');
-    await expect(page.locator('.notice')).toHaveText('Saved.');
+      await page.getByRole('link', { name: edited }).click();
+      await page.getByTestId('task-delete').click();
+      await page.getByTestId('task-delete-confirm').click();
+      await expect(page).toHaveURL('/tasks');
+      await expect(page.getByText(edited)).toHaveCount(0);
 
-    // 12. Going back to main taskboard view 
-    await page.click('text= Back to my tasks');
-    await expect(page).toHaveURL('/tasks');
+      await page.goto('/tasks/t-sam-1');
+      await expect(page.getByTestId('error-message')).toContainText('your own');
 
-    // 13. Verify updated task title is visible on board
-    await expect(todoColumn.locator('text=Playwright E2E Updated Integration Task')).toBeVisible();
-
-    // 14. Click on Updated Task and Delete task
-    await page.click('text=Playwright E2E Updated Integration Task');
-    await page.click('[data-testid="task-delete"]');
-    await Promise.all([
-      page.waitForResponse(response => response.url().includes('/api/tasks') && response.status() === 200),
-      page.click('[data-testid="task-delete-confirm"]')
-    ]);
-
-    // 15. Redirect back to my task and task is gone
-    await expect(page).toHaveURL('/tasks');
-    await expect(todoColumn.locator('text=Playwright E2E Updated Integration Task')).not.toBeVisible();
+      await page.goto('/admin');
+      await expect(page.getByTestId('admin-forbidden')).toBeVisible();
+      await shot(page, '07-admin-forbidden.png');
+    } finally {
+      await removeTasks(request, titles);
+    }
   });
 
-  test('Admin user can view all accounts and manage all tasks', async ({page}) => {
-    // 1. Landing On Home Page
-    await page.goto('/login');
+  test('admin can manage every account and task, including another user’s task', async ({ page, request }) => {
+    const title = `Admin E2E ${Date.now()}`;
+    const edited = `${title} edited`;
+    const titles = [title, edited];
 
-    // 2. Fill account credentials for standard user
-    await page.fill('[data-testid="login-email"]', 'jordan@example.com');
-    await page.fill('[data-testid="login-password"]', 'password');
+    try {
+      await signIn(page, 'jordan@example.com');
+      await expect(page.getByTestId('user-role')).toContainText('Admin');
+      await page.getByTestId('nav-admin').click();
+      await expect(page).toHaveURL('/admin');
+      await expect(page.getByRole('heading', { name: 'Admin' })).toBeVisible();
+      await expect(page.getByTestId('admin-users')).toContainText('alex@example.com');
+      await expect(page.getByTestId('admin-users')).toContainText('Sam Patel');
+      await expect(page.getByTestId('admin-users')).not.toContainText('password');
+      await expect(page.getByTestId('admin-tasks')).toContainText('Collect tutorial notes');
+      await shot(page, '08-admin.png');
 
-    // 3. Submit sign-in form
-    await page.click('[data-testid="login-submit"]');
+      await page.getByRole('row', { name: /Collect tutorial notes/ }).getByRole('link', { name: 'Open' }).click();
+      await expect(page.getByRole('heading', { name: 'Collect tutorial notes' })).toBeVisible();
+      await expect(page.locator('.meta-list')).toContainText('Sam Patel');
+      await shot(page, '09-admin-opens-other-task.png');
 
-    // 4. Navigate to admin page
-    await page.goto('/admin');
+      await page.getByTestId('nav-new').click();
+      await page.getByTestId('task-title').fill(title);
+      await page.getByTestId('task-notes').fill('Admin-owned task for the workflow test.');
+      await page.getByTestId('task-submit').click();
+      await expect(page.getByRole('heading', { name: title })).toBeVisible();
 
-    // 5. Verify admin can see all users and all tasks 
-    await expect(page.locator('h1')).toHaveText('Admin');
-    await expect(page.locator('[data-testid="admin-users"]')).toBeVisible();
-    await expect(page.locator('[data-testid="admin-tasks"]')).toBeVisible();
+      await page.getByTestId('task-title').fill(edited);
+      await page.getByTestId('task-status').selectOption('in_progress');
+      await page.getByTestId('task-submit').click();
+      await expect(page.getByText('Saved.')).toBeVisible();
+      await expect(page.locator('.meta-list dd').first()).toHaveText('In Progress');
 
-    // 6. Assuming there are tasks link the admin can open
-    const adminTasksTable = page.locator('[data-testid="admin-tasks"]');
+      await page.goto('/admin');
+      await expect(page.getByTestId('admin-tasks')).toContainText(edited);
+      await page.getByRole('row', { name: new RegExp(edited.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).getByRole('link', { name: 'Open' }).click();
+      await page.getByTestId('task-delete').click();
+      await page.getByTestId('task-delete-confirm').click();
+      await expect(page).toHaveURL('/tasks');
 
-    // 7. Click the first available task link in the admin task table
-    await adminTasksTable.locator('a', { hasText: 'Open'}).first().click();
-
-    // 8. Verify that admin can view the task detail of any user in that table and update the task (title) in this scenario
-    await expect(page).toHaveURL(/\/tasks\/.+/);
-    await page.fill('input[name="title"]', 'Admin Updated Task Title');
-    await page.click('button[type="submit"]');
-    await expect(page.locator('.notice')).toHaveText('Saved.');
-
-    // 9a. Go back to admin dashboard and check updated task
-    await page.goto('/admin');
-    await expect(page.locator('[data-testid="admin-tasks"]')).toContainText('Admin Updated Task Title');
-
-    // 9b. Go back to task dashboard and check updated task
-    await page.goto('/tasks');
-    await expect(page.locator('text=Admin Updated Task Title')).toBeVisible();
-
-    // 9c Go back to /admin to locate the task row open it for deletion
-    await page.goto('/admin');
-
-    // 10a. Open the updated task again and delete it to clean up
-    const updatedRow = page.locator('tr', {hasText: 'Admin Updated Task Title'});
-    await updatedRow.locator('a', {hasText: 'Open'}).click();
-
-    // 10b. Delete task
-    await page.click('[data-testid="task-delete"]');
-    await Promise.all([
-      page.waitForResponse(response => response.url().includes('/api/tasks') && response.status() === 200),
-      page.click('[data-testid="task-delete-confirm"]')
-    ]);
-
-    // 11a. Redirect back to the task and task is gone from admin panel. 
-    await page.goto('/admin');
-    await expect(page.locator('[data-testid="admin-tasks"]')).not.toContainText('Admin Updated Task Title');
-  
-    // 11b. Redirect back to the task and task is gone from taskboard panel. 
-    await page.goto('/tasks');
-    await expect(page.locator('text=Admin Updated Task Title')).not.toBeVisible();
+      await page.goto('/admin');
+      await expect(page.getByTestId('admin-tasks')).not.toContainText(edited);
+      await expect(page.getByTestId('admin-tasks')).toContainText('Collect tutorial notes');
+      await shot(page, '10-admin-after-delete.png');
+    } finally {
+      await removeTasks(request, titles);
+    }
   });
 });
-
-
