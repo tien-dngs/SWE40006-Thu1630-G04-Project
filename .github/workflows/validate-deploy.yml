@@ -162,17 +162,56 @@ jobs:
       - name: Deploy production containers
         run: |
           set -euo pipefail
-          SSH="ssh -i ~/.ssh/ci_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30"
-          HOST="ubuntu@172.31.25.252"
-          $SSH "$HOST" "mkdir -p ~/taskboard/deploy"
-          scp -i ~/.ssh/ci_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new deploy/up.sh deploy/nginx-host.conf "$HOST:~/taskboard/deploy/"
-          docker save taskboard-backend:latest taskboard-frontend:latest | $SSH "$HOST" "docker load"
-          $SSH "$HOST" "sed -i 's/\r$//' ~/taskboard/deploy/up.sh && chmod +x ~/taskboard/deploy/up.sh && HTTP_PORT=8080 BIND_ADDRESS=127.0.0.1 INSTALL_HOST_NGINX=1 ~/taskboard/deploy/up.sh"
+          SSH_OPTS="-i ~/.ssh/ci_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30 -o ConnectTimeout=12"
+          report() {
+            echo "$1" >&2
+            echo "::error::$1"
+          }
+          pick=""
+          for candidate in ubuntu@172.31.25.252 ubuntu@3.107.241.179; do
+            if ssh $SSH_OPTS "$candidate" "echo connected" >ssh-out.txt 2>ssh-err.txt; then
+              pick="$candidate"
+              break
+            fi
+            echo "ssh failed for $candidate"
+            cat ssh-err.txt || true
+          done
+          if [ -z "$pick" ]; then
+            report "Could not SSH to the production server on the private or public address."
+            while IFS= read -r line; do echo "::error::$line"; done < ssh-err.txt
+            exit 1
+          fi
+          echo "PROD_HOST=$pick" >> "$GITHUB_ENV"
+          echo "using $pick"
+          if ! ssh $SSH_OPTS "$pick" "docker version --format '{{.Server.Version}}' && free -m && df -h /" >preflight.txt 2>&1; then
+            report "Production SSH worked, but Docker is not usable there."
+            while IFS= read -r line; do echo "::error::$line"; done < preflight.txt
+            exit 1
+          fi
+          cat preflight.txt
+          ssh $SSH_OPTS "$pick" "mkdir -p ~/taskboard/deploy"
+          scp $SSH_OPTS deploy/up.sh deploy/nginx-host.conf "$pick:~/taskboard/deploy/"
+          if ! docker save taskboard-backend:latest | ssh $SSH_OPTS "$pick" "docker load" >load-backend.txt 2>&1; then
+            report "Could not load the backend image on production."
+            while IFS= read -r line; do echo "::error::$line"; done < load-backend.txt
+            exit 1
+          fi
+          if ! docker save taskboard-frontend:latest | ssh $SSH_OPTS "$pick" "docker load" >load-frontend.txt 2>&1; then
+            report "Could not load the frontend image on production."
+            while IFS= read -r line; do echo "::error::$line"; done < load-frontend.txt
+            exit 1
+          fi
+          if ! ssh $SSH_OPTS "$pick" "sed -i 's/\r$//' ~/taskboard/deploy/up.sh && chmod +x ~/taskboard/deploy/up.sh && HTTP_PORT=8080 BIND_ADDRESS=127.0.0.1 INSTALL_HOST_NGINX=1 ~/taskboard/deploy/up.sh" >up.txt 2>&1; then
+            report "Production containers did not start."
+            while IFS= read -r line; do echo "::error::$line"; done < up.txt
+            exit 1
+          fi
+          cat up.txt
 
       - name: Verify production application and database
         run: |
           set -euo pipefail
-          SSH="ssh -i ~/.ssh/ci_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          SSH_OPTS="-i ~/.ssh/ci_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=12"
           check() {
             base="$1"
             echo "checking $base"
@@ -181,7 +220,7 @@ jobs:
             curl -fsS --retry 5 --retry-delay 2 --max-time 20 "$base/" | grep -q Taskboard
             curl -fsS --retry 5 --retry-delay 2 --max-time 20 "$base/api/tasks" >/dev/null
           }
-          check "http://172.31.25.252"
+          ssh $SSH_OPTS "$PROD_HOST" "curl -fsS --retry 5 --retry-delay 2 --max-time 20 http://127.0.0.1/api/health && curl -fsS --max-time 20 http://127.0.0.1/ | grep -q Taskboard"
           check "http://3.107.241.179"
           ID="t-ci-${GITHUB_RUN_ID}"
           cleanup() {
@@ -191,7 +230,7 @@ jobs:
           curl -fsS --max-time 20 -X POST "http://3.107.241.179/api/tasks" \
             -H "Content-Type: application/json" \
             -d "{\"id\":\"${ID}\",\"title\":\"CI persistence check\",\"notes\":\"removed after the check\",\"status\":\"todo\",\"ownerId\":\"u-alex\",\"ownerName\":\"Alex Nguyen\",\"updatedAt\":\"2026-10-20T00:00:00.000Z\"}"
-          $SSH "ubuntu@172.31.25.252" "docker restart taskboard-backend"
+          ssh $SSH_OPTS "$PROD_HOST" "docker restart taskboard-backend"
           for i in 1 2 3 4 5 6 7 8 9 10; do
             curl -fsS --max-time 5 "http://3.107.241.179/api/health" >/dev/null && break
             sleep 2
