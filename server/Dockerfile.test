@@ -1,11 +1,11 @@
-FROM node:20
+FROM node:24-alpine
 
 WORKDIR /app
 
 COPY server/package*.json ./
-RUN npm ci 
+RUN npm install
 
-COPY Data /app/Data
 COPY server/ ./
+COPY Data/ /app/Data/
 
 CMD ["npm", "test"]
