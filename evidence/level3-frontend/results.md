@@ -1,23 +1,20 @@
-# Level 3 frontend evidence
+# Level 3 evidence
 
-Checked on 19 October 2026 from this machine. Nothing was deployed to staging or production.
+Checked on 20 October 2026. The pipeline run is https://github.com/tien-dngs/SWE40006-Thu1630-G04-Project/actions/runs/39278508992 and finished green.
 
-## Tests
+## Tests on the CI runner
 
-- Playwright: 2 passed (`npx playwright test`, 8.9s)
-  - Standard user: sign in, view own tasks, open New task, create, edit, mark Done, delete, blocked from another user's task and from Admin
-  - Admin: see all users and tasks, open Sam Patel's task, create, edit, delete an admin-owned task
-- Frontend Jest: 4 passed (`npm test` in `frontend`)
-- Frontend lint: clean (`npm run lint`)
-- Seed data after the tests: 3 users and the original 7 notes
+- Backend integration tests inside Docker: passed
+- Frontend Jest: passed
+- Playwright against the real API: passed
+- The test database is created on the runner when the checkout has no SQLite file. An existing database is left as it is.
 
-Screenshots are in `evidence/level3-frontend/screenshots`. The HTML report is in `evidence/level3-frontend/playwright-report`.
+## Deploy
 
-## Docker
+The same CI runner builds the images and installs them with the existing SSH key.
 
-`docker build -t taskboard-frontend frontend` succeeded. A container served the Taskboard page on port 8090, and the built script contains `http://localhost:4004`. The container was removed after that check. There is no backend image in the repository, so the browser still needs the Express server running on the host.
-
-## Servers
-
-- Staging `http://13.236.208.200/` did not accept a connection on port 80.
-- Production `http://3.107.241.179/` returned the default Nginx welcome page. The Taskboard app is not deployed there.
+- Staging `http://13.236.208.200/` returns the Taskboard page. `http://13.236.208.200/api/health` returns ok, and `/api/tasks` still has the seed task "Draft weekly notes".
+- Production `http://3.107.241.179/` returns the Taskboard page through the host Nginx. `http://3.107.241.179/api/health` returns ok, and `/api/tasks` still has the seed tasks.
+- Grafana on `http://3.107.241.179:3001/login` still returns 200. The monitoring containers were not replaced.
+- Each deploy wrote one temporary task, restarted only the API container, read that task back, then deleted it. That row is gone. The seed rows are still there.
+- SQLite is stored on the Docker volume `taskboard_data`. The seed runs only when the users table is missing.
