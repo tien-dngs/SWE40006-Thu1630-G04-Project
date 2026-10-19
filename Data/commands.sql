@@ -33,6 +33,6 @@ INSERT INTO notes (id, title, notes, status, ownerId, ownerName, updatedAt) VALU
 
 
 -- USE THESE ONLY TO VIEW THE DATA 
-SELECT * FROM notes;
+-- SELECT * FROM notes;
 
-SELECT * FROM users; 
+-- SELECT * FROM users; 

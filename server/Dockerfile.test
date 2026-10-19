@@ -1,5 +1,7 @@
 FROM node:24-alpine
 
+RUN apk add --no-cache sqlite
+
 WORKDIR /app
 
 COPY server/package*.json ./
@@ -9,5 +11,7 @@ COPY server/ ./
 COPY Data/ /app/Data/
 
 ENV DB_PATH=/app/Data/db.sqlite
+
+RUN sqlite3 /app/Data/db.sqlite < /app/Data/commands.sql
 
 CMD ["npm", "test"]
