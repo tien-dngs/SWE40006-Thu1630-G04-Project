@@ -8,4 +8,6 @@ RUN npm install
 COPY server/ ./
 COPY Data/ /app/Data/
 
+ENV DB_PATH=/app/Data/db.sqlite
+
 CMD ["npm", "test"]
