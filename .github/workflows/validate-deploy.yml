@@ -20,27 +20,32 @@ jobs:
       - name: Run backend test inside docker container
         run: docker run --rm taskboard-backend-validation
 
-  validate-frontend:
+  validate-frontend-container:
     name: Frontend Unit Tests (Jest)
     runs-on: self-hosted
-    defaults:
-      run:
-        working-directory: frontend
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Setup Node.js (v20)
+
+      - name: Setup Node.js (v24)
         uses: actions/setup-node@v4
         with: 
-          node-version: '20'
-      - name: Install Frontend Deps
-        run: npm ci
-      - name: Run Frontend Tests
-        run: npm test
+          node-version: '24'
+
+      - name: Run frontend Jest tests
+        working-directory: frontend
+        run: |
+          npm ci
+          npm test
+
+      - name: Build Frontend Docker Image
+        working-directory: frontend
+        run: |
+          docker build -t taskboard-frontend --build-arg VITE_API_BASE_URL=http://localhost:4004 .
 
   ete-acceptance-tests:
     name: Playwright E2E Tests
-    needs: [validate-frontend, validate-backend-container]
+    needs: [validate-frontend-container, validate-backend-container]
     runs-on: self-hosted
     defaults:
       run:
@@ -49,10 +54,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js (v20)
+      - name: Setup Node.js (v24)
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Install Root dependencies
         run: npm ci
@@ -70,3 +75,5 @@ jobs:
         run: npm run test:ete
         env:
           VITE_API_BASE_URL: http://localhost:4004
+
+      
