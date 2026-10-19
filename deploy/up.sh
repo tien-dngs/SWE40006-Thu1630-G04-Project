@@ -47,13 +47,17 @@ docker run -d --name taskboard-frontend \
 if [ "$INSTALL_HOST_NGINX" = "1" ]; then
   sudo cp "$DEPLOY_DIR/deploy/nginx-host.conf" /etc/nginx/sites-available/taskboard
   sudo ln -sfn /etc/nginx/sites-available/taskboard /etc/nginx/sites-enabled/taskboard
-  if ! sudo nginx -t; then
-    sudo rm -f /etc/nginx/sites-enabled/taskboard
-    exit 1
-  fi
+  default_target=""
   if [ -e /etc/nginx/sites-enabled/default ]; then
+    default_target="$(readlink -f /etc/nginx/sites-enabled/default || true)"
     sudo rm -f /etc/nginx/sites-enabled/default
   fi
-  sudo nginx -t
+  if ! sudo nginx -t; then
+    sudo rm -f /etc/nginx/sites-enabled/taskboard
+    if [ -n "$default_target" ]; then
+      sudo ln -sfn "$default_target" /etc/nginx/sites-enabled/default
+    fi
+    exit 1
+  fi
   sudo systemctl reload nginx
 fi
