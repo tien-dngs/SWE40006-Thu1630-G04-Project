@@ -5,7 +5,7 @@ WORKDIR /app
 COPY server/package*.json ./
 RUN npm ci 
 
-COPY Data /../Data
+COPY Data /app/Data
 COPY server/ ./
 
 CMD ["npm", "test"]
