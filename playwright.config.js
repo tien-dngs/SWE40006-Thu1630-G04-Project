@@ -16,10 +16,10 @@ module.exports = defineConfig({
   },
   webServer: [
     {
-      command: 'npm start',
+      command: 'node scripts/init-db.js && npm start',
       cwd: './server',
       url: 'http://localhost:4004/api/health',
-      reuseExistingServer: true,
+      reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
     },
     {

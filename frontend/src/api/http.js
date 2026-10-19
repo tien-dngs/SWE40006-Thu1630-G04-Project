@@ -7,10 +7,6 @@ const baseUrl = String(import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '
 
 let currentSessionUser = null
 
-function requireBaseUrl() {
-  if (!baseUrl) throw new Error('VITE_API_BASE_URL is empty.')
-}
-
 async function readBody(response) {
   const text = await response.text()
   if (!text) return {}
@@ -31,7 +27,6 @@ export function setSession(user) {
 }
 
 export async function login({ email, password }) {
-  requireBaseUrl()
   const response = await fetch(`${baseUrl}/api/users`)
   const users = await readBody(response)
   if (!response.ok) throw new Error(users.error || 'Failed to fetch users')
@@ -47,7 +42,6 @@ export async function login({ email, password }) {
 }
 
 export async function listMyTasks() {
-  requireBaseUrl()
   if (!currentSessionUser) throw new Error('Sign in to continue.')
   const response = await fetch(`${baseUrl}/api/tasks`)
   const tasks = await readBody(response)
@@ -58,7 +52,6 @@ export async function listMyTasks() {
 }
 
 export async function getTask(id) {
-  requireBaseUrl()
   if (!currentSessionUser) throw new Error('Sign in to continue.')
   const response = await fetch(`${baseUrl}/api/tasks`)
   const tasks = await readBody(response)
@@ -72,7 +65,6 @@ export async function getTask(id) {
 }
 
 export async function createTask(input) {
-  requireBaseUrl()
   if (!currentSessionUser) throw new Error('Sign in to continue.')
 
   const tasksResponse = await fetch(`${baseUrl}/api/tasks`)
@@ -116,7 +108,6 @@ export async function createTask(input) {
 }
 
 export async function updateTask(id, input) {
-  requireBaseUrl()
   const response = await fetch(`${baseUrl}/api/tasks/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -134,7 +125,6 @@ export async function updateTask(id, input) {
 }
 
 export async function deleteTask(id) {
-  requireBaseUrl()
   const response = await fetch(`${baseUrl}/api/tasks/${id}`, { method: 'DELETE' })
   const body = await readBody(response)
   if (!response.ok) throw new Error(body.error || 'Failed to delete task')
@@ -142,7 +132,6 @@ export async function deleteTask(id) {
 }
 
 export async function listUsers() {
-  requireBaseUrl()
   if (!currentSessionUser) throw new Error('Sign in to continue.')
   if (currentSessionUser.role !== 'admin') throw new Error('Only an admin can do that.')
   const response = await fetch(`${baseUrl}/api/users`)
@@ -152,7 +141,6 @@ export async function listUsers() {
 }
 
 export async function listAllTasks() {
-  requireBaseUrl()
   if (!currentSessionUser) throw new Error('Sign in to continue.')
   if (currentSessionUser.role !== 'admin') throw new Error('Only an admin can do that.')
   const response = await fetch(`${baseUrl}/api/tasks`)
