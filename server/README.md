@@ -18,8 +18,11 @@ cd server
 npm install
 npm start
 ```
-
-Copy the URL and open on browser to access the backend
+## Executed automatically on self-hosted CI/Build server (`3.26.151.91`) on every push. Confirms all test can pass inside container environment. 
+```bash
+docker build -t taskboard-backend-validation -f server/Dockerfile.test server 
+docker run --rm -p 4004:4004 taskboard-backend-validation
+```
 
 Copy `.env.example` to `.env` if you need to change configuration. `VITE_API_BASE_URL` is the backend address. 
 
