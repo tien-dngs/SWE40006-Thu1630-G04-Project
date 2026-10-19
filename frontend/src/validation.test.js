@@ -1,4 +1,4 @@
-import { statusLabel, validateTask, STATUSES } from './validation.js';
+import { statusLabel, validateTask } from './validation.js';
 
 describe('Frontend Validation Logic', () => {
     describe('statusLabel', () => {
