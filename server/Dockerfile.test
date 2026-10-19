@@ -2,9 +2,13 @@ FROM node:20
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci
+RUN  apt-get update && apt-get install -y python3 make g++
 
-COPY . .
+COPY server/package*.json ./
+RUN npm ci --build-from-source=sqlite3
+
+COPY Data /Data
+
+COPY server/ ./
 
 CMD ["npm", "test"]

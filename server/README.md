@@ -20,7 +20,7 @@ npm start
 ```
 ## Executed automatically on self-hosted CI/Build server (`3.26.151.91`) on every push. Confirms all test can pass inside container environment. 
 ```bash
-docker build -t taskboard-backend-validation -f server/Dockerfile.test server 
+docker build -t taskboard-backend-validation -f server/Dockerfile.test .
 docker run --rm -p 4004:4004 taskboard-backend-validation
 ```
 
