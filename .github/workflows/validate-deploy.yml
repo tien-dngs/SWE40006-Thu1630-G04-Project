@@ -9,20 +9,16 @@ jobs:
   validate-backend-container:
     name: Backend Integration Test (Docker)
     runs-on: self-hosted
-    defaults:
-      run:
-
-        working-directory: server
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Build Backend Test Image
         run: |
-          docker build -t taskboard-backend-test -f Dockerfile.test .
+          docker build -t taskboard-backend-validation -f server/Dockerfile.test .
 
       - name: Run backend test inside docker container
-        run: docker run --rm taskboard-backend-test
+        run: docker run --rm taskboard-backend-validation
 
   validate-frontend:
     name: Frontend Unit Tests (Jest)
