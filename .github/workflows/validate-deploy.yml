@@ -61,18 +61,20 @@ jobs:
 
       - name: Install Root dependencies
         run: npm ci
+
+      - name: Install Frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Backend dependencies
+        working-directory: server
+        run: npm ci
+
       - name: Install Playwright Browser and Deps
         run: npx playwright install --with-deps
 
-      - name: Install & Start Backend (in background)
-        run: |
-          cd server
-          npm ci
-          node server.js &
-          sleep 10 # Wait for server to fully boot
-
       - name: Run Playwright Tests (test:ete)
-        run: npm run test:ete
+        run: npx playwright test 
         env:
           VITE_API_BASE_URL: http://localhost:4004
 
