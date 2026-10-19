@@ -2,13 +2,10 @@ FROM node:20
 
 WORKDIR /app
 
-RUN  apt-get update && apt-get install -y python3 make g++
-
 COPY server/package*.json ./
 RUN npm ci 
 
-COPY Data /Data
-
+COPY Data /../Data
 COPY server/ ./
 
 CMD ["npm", "test"]
