@@ -114,31 +114,30 @@ jobs:
       - name: Verify staging application and database
         run: |
           set -euo pipefail
-          SSH="ssh -i ~/.ssh/ci_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
-          check() {
-            base="$1"
-            echo "checking $base"
-            curl -fsS --retry 5 --retry-delay 2 --max-time 20 "$base/api/health"
-            echo
-            curl -fsS --retry 5 --retry-delay 2 --max-time 20 "$base/" | grep -q Taskboard
-            curl -fsS --retry 5 --retry-delay 2 --max-time 20 "$base/api/tasks" >/dev/null
-          }
-          check "http://172.31.29.200"
-          check "http://13.236.208.200"
+          SSH_OPTS="-i ~/.ssh/ci_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=12"
+          HOST="ubuntu@172.31.29.200"
+          PUBLIC="http://13.236.208.200"
+          ssh $SSH_OPTS "$HOST" "docker ps --filter name=taskboard --format '{{.Names}} {{.Status}} {{.Ports}}'"
+          ssh $SSH_OPTS "$HOST" "curl -fsS --retry 10 --retry-all-errors --retry-delay 2 --max-time 10 http://127.0.0.1/api/health && curl -fsS --max-time 10 http://127.0.0.1/ | grep -q Taskboard"
+          echo "checking $PUBLIC"
+          curl -fsS --retry 10 --retry-all-errors --retry-delay 2 --max-time 20 "$PUBLIC/api/health"
+          echo
+          curl -fsS --retry 10 --retry-all-errors --retry-delay 2 --max-time 20 "$PUBLIC/" | grep -q Taskboard
+          curl -fsS --retry 10 --retry-all-errors --retry-delay 2 --max-time 20 "$PUBLIC/api/tasks" >/dev/null
           ID="t-ci-${GITHUB_RUN_ID}"
           cleanup() {
-            curl -fsS --max-time 20 -X DELETE "http://172.31.29.200/api/tasks/${ID}" >/dev/null || true
+            curl -fsS --max-time 20 -X DELETE "$PUBLIC/api/tasks/${ID}" >/dev/null || true
           }
           trap cleanup EXIT
-          curl -fsS --max-time 20 -X POST "http://172.31.29.200/api/tasks" \
+          curl -fsS --max-time 20 -X POST "$PUBLIC/api/tasks" \
             -H "Content-Type: application/json" \
             -d "{\"id\":\"${ID}\",\"title\":\"CI persistence check\",\"notes\":\"removed after the check\",\"status\":\"todo\",\"ownerId\":\"u-alex\",\"ownerName\":\"Alex Nguyen\",\"updatedAt\":\"2026-10-20T00:00:00.000Z\"}"
-          $SSH "ubuntu@172.31.29.200" "docker restart taskboard-backend"
+          ssh $SSH_OPTS "$HOST" "docker restart taskboard-backend"
           for i in 1 2 3 4 5 6 7 8 9 10; do
-            curl -fsS --max-time 5 "http://172.31.29.200/api/health" >/dev/null && break
+            curl -fsS --max-time 5 "$PUBLIC/api/health" >/dev/null && break
             sleep 2
           done
-          curl -fsS --max-time 20 "http://172.31.29.200/api/tasks" | grep -q "$ID"
+          curl -fsS --max-time 20 "$PUBLIC/api/tasks" | grep -q "$ID"
 
   deploy-production:
     name: Deploy to Production

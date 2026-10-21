@@ -44,6 +44,24 @@ docker run -d --name taskboard-frontend \
   -p "${BIND_ADDRESS}:${HTTP_PORT}:80" \
   taskboard-frontend:latest
 
+ready=0
+i=0
+while [ "$i" -lt 30 ]; do
+  if curl -fsS --max-time 5 "http://127.0.0.1:${HTTP_PORT}/api/health" >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
+  i=$((i + 1))
+  sleep 2
+done
+
+if [ "$ready" -ne 1 ]; then
+  echo "frontend did not become healthy on port ${HTTP_PORT}" >&2
+  docker ps --filter name=taskboard >&2 || true
+  docker logs taskboard-frontend >&2 || true
+  exit 1
+fi
+
 if [ "$INSTALL_HOST_NGINX" = "1" ]; then
   sudo cp "$DEPLOY_DIR/deploy/nginx-host.conf" /etc/nginx/sites-available/taskboard
   sudo ln -sfn /etc/nginx/sites-available/taskboard /etc/nginx/sites-enabled/taskboard
